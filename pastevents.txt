@@ -1,0 +1,15 @@
+warp ..
+proclore 1908
+proclore
+proclore 1908
+seek -f -e text.txt .
+seek -d text.txt .
+seek text.txt .
+seek -d test.txt .
+sleep 5 &
+sleep 1
+sleep 100 &
+sleep 1 
+warp ..
+sleep 5s 
+warp ..
