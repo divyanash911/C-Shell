@@ -37,3 +37,8 @@ void print_permissions(mode_t mode) {
     putchar((mode & S_IWOTH) ? 'w' : '-');
     putchar((mode & S_IXOTH) ? 'x' : '-');
 }
+
+void perrorf(char* s){
+    printf(ANSI_COLOR_RED "%s\n" ANSI_COLOR_RESET,s);
+
+}

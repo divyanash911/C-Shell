@@ -1,32 +1,98 @@
 #include "headers.h"
-// #include "prompt.c"
-// #include "searchfile.c"
-// #include "peek.c"
-// #include "pastevents.c"
-// #include "stringhelper.c"
-// #include "proclore.c"
+#include<termios.h>
 
 int inter=1;
+int z_inter=0;
+int d_inter=0;
 int proc_stat=0;
 struct background_struct{
     char* name;
     pid_t pid;
     struct background_struct* next;
 };
+struct background_struct* bg_processes;
+struct processes* list_proc;
+struct file_buffer* f;
+int fore=0;
+char* directory;
+char* prev_dir;
+int pastevents_flag;
+char pastevents_command[4096];
+char* pastevents_dir;
+
+struct processes{
+
+    char* name;
+    pid_t pid;
+    struct processes* next;
+
+};
 
 void sighandler(int sig){
 
-    inter= 0;
+    
+
+    struct processes* l=list_proc;
+    struct background_struct* head=bg_processes;
+    int flag=0;
+    
+
+
+
+    while(l->next){
+        // printf("Hi\n");
+        
+            
+            kill(l->next->pid,SIGTSTP);
+            kill(l->next->pid,SIGSTOP);
+            struct background_struct* new=(struct background_struct*)malloc(sizeof(struct background_struct));
+            new->name=(char*)malloc(sizeof(char)*100);
+            strcpy(new->name,l->next->name);
+            new->pid=l->next->pid;
+            new->next=head->next;
+            head->next=new;
+        
+
+        l->next=l->next->next;
+        
+        
+    }
+    
+    
 
 }
+
+void sig_c(int sig){
+    
+    
+    
+    
+    if(kill(fore,SIGINT)==-1){
+        perrorf("Signal error");
+        exit(1);
+    }
+
+
+
+}
+
+void sig_d(int sig){
+    
+    if(sig==SIGQUIT){
+        kill(0,SIGKILL);
+        exit(1);
+        }
+
+}
+
 
 void print_bg(struct background_struct* bg){
         struct background_struct* head=bg;
 
         while(head->next){
             int status;
-            waitpid(head->next->pid,&status,0);
-
+            int r=waitpid(head->next->pid,&status,WNOHANG);
+            if(r!=0){
             if (WIFEXITED(status)) {
             int exit_status = WEXITSTATUS(status);
             if (exit_status == 0) {
@@ -37,57 +103,125 @@ void print_bg(struct background_struct* bg){
         } else {
             printf("%s Process ended abnormally (%d).\n",head->next->name,head->next->pid);
         }
-        // printf("%s\n",head->next->name);
         head->next=head->next->next;
-        }}
+        }
+        else{
+            head=head->next;
+        }}}
 
+
+void activities(struct processes* head){
+
+    while(head){
+        printf("%d : ",head->pid);
+        printf("%s - ",head->name);
+        int stat=kill(0,head->pid);
+
+        if(stat==0){
+            printf("Running\n");
+        }
+        else printf("Stopped\n");
+
+        head=head->next;
+
+    }
+
+}
+
+void activities_b(struct background_struct* head){
+
+    while(head->next){
+        printf("%d : ",head->next->pid);
+        printf("%s - ",head->next->name);
+        int status;
+        int stat=waitpid(head->next->pid,&status,WNOHANG);
+
+        
+
+        if(stat==0){
+            
+            char* proc_path=(char*)malloc(sizeof(char)*50);
+            snprintf(proc_path,50,"/proc/%d/stat",head->next->pid);
+            // printf("%s\n",proc_path);
+            FILE* file=fopen(proc_path,"r");
+            char line[1000]; 
+            int index = 0;  
+            char thirdElements[100][50];
+            while (fgets(line, sizeof(line), file)) {
+               
+                
+                char *token = strtok(line, " ");
+
+                int count = 0;
+                while (token != NULL) {
+                    if (count == 2) { 
+                        strcpy(thirdElements[index], token); 
+                        index++;
+                        break; 
+                    }
+                    token = strtok(NULL, " ");
+                    count++;
+                }
+            
+}
+    if(thirdElements[0][0]=='R' || thirdElements[0][0]=='S'){
+        printf("Running\n");
+    }
+    else{
+        printf("Stopped\n");
+    }
+}
+        else{
+            head->next=head->next->next;
+        }
+
+        head=head->next;
+
+    }
+
+}
 
 int main()
 {
-    // Keep accepting commands
-    struct file_buffer* f=(struct file_buffer*)malloc(sizeof(struct file_buffer));
+    pid_t parent_pid = getpid();
+    
+        f=(struct file_buffer*)malloc(sizeof(struct file_buffer));
         f->end_index=0;
         f->count=0;
         f->start_index=0;
         for(int i=0;i<MAX_COMMANDS;i++){
             f->commands[i][0]='\0';
     }
-    
+
     loadfile(f);
-    signal(SIGINT,sighandler);
+    signal(SIGINT,sig_c);
+    signal(SIGQUIT,sig_d);
+    signal(SIGTSTP,sighandler);
 
     int prompt_flag=0;
     char* fg_process=(char*)malloc(sizeof(char)*LEN);
     int fg_time;
     char copy_command[4096];
-    char* directory=(char*)malloc(sizeof(char)*LEN);
+    directory=(char*)malloc(sizeof(char)*LEN);
 
     directory=getcwd(directory,LEN);
-    char* prev_dir=(char*)malloc(sizeof(char)*LEN);
+    prev_dir=(char*)malloc(sizeof(char)*LEN);
     strcpy(prev_dir,directory);
     char prev_input[4096];
-    int pastevents_flag=0;
-    char pastevents_command[4096];
-    char* pastevents_dir=(char*)malloc(sizeof(char)*LEN);
+    pastevents_flag=0;
+    // char pastevents_command[4096];
+    pastevents_dir=(char*)malloc(sizeof(char)*LEN);
     strcpy(pastevents_dir,directory);
     
     strcat(pastevents_dir,"/pastevents.txt");
-    struct background_struct* bg_processes=(struct background_struct*)malloc(sizeof(struct background_struct));
+    bg_processes=(struct background_struct*)malloc(sizeof(struct background_struct));
     bg_processes->next=NULL;
-    
-    
-    
-    // printf("%s\n",directory);
+    list_proc=(struct processes*)malloc(sizeof(struct processes));
+    list_proc->next=NULL;
     while (inter)
     {
-
-      
-        // Print appropriate prompt with username, systemname and directory before accepting input
         char* current_directory=(char*)malloc(sizeof(char)*LEN);
         current_directory=getcwd(current_directory,LEN);
-             
-        
-        
         prompt(directory,&prompt_flag,fg_process,fg_time);
         char input_raw[4096];
         char processed_input[4096];
@@ -99,9 +233,15 @@ int main()
             strcpy(input_raw,pastevents_command);
             pastevents_flag=0;
         }
-            // strcpy(input_raw,pastevents_command);
-            // pastevents_flag=0;
         if(input_raw==NULL){
+            
+            break;
+        }
+        else if(input_raw[0]=='\0'){
+            kill(0,SIGKILL);
+            break;
+        }
+        else if(input_raw[0]=='\n'){
             continue;
         }
         else{
@@ -111,17 +251,9 @@ int main()
         
         if(input_raw[0]!='\n' && check_valid(f,input_raw) && strstr(input_raw,"pastevents")==NULL)
         insert(f,input_raw);
-        
-        
-
-        // print_queue(f);
         print_bg(bg_processes);
         strcpy(copy_command,input_raw);
         char* input=strtok(input_raw,"\n");
-        
-        // write_to_file(input_raw,prev_dir);
-       
-
         char* token;
         char* saveptr_one;
         
@@ -137,9 +269,6 @@ int main()
             token=strtok_r(NULL,";",&saveptr_one);
 
         }
-        // for(int i=0;i<index_of_array;i++){
-        //     printf("%s\n",command_array[i]);
-        // }
         for(int i=0;i<index_of_array;i++){
             char* saveptr_two;
             int check_flag=0;
@@ -147,6 +276,44 @@ int main()
             char* command_array_tokeniser=(char*)malloc(sizeof(char)*LEN);
             strcpy(command_array_tokeniser,command_array[i]);
             char* newtoken=strtok_r(command_array_tokeniser," ",&saveptr_two);
+
+            if(strstr(command_array[i],"<")||strstr(command_array[i],">")||strstr(command_array[i],"|")){
+
+                char* c_command=(char*)malloc(sizeof(char)*100);
+                strcpy(c_command,command_array[i]);
+                char* c_tok;
+                c_tok=strtok(c_command,"|");
+                char* prev_t=(char*)malloc(sizeof(char)*100);
+                char** c_command_array=(char**)malloc(sizeof(char*)*MAX_COMMANDS);
+                int c_comm_ind=0;
+                for(int j=0;j<MAX_COMMANDS;j++){
+                    c_command_array[j]=(char*)malloc(sizeof(char)*MAX_LEN);
+                }
+
+                while(c_tok){
+
+                    
+                    strcpy(c_command_array[c_comm_ind++],c_tok);
+
+                    c_tok=strtok(NULL,"|");
+                }
+                for(int i=0;i<c_comm_ind;i++){
+                    if(command_array[i][0]=='|' || command_array[i][strlen(command_array[i])-1]=='|'){
+                        perrorf("Invalid use of Pipes!");
+                        exit(1);
+                    }
+                }
+                pipe_handler(c_command_array,c_comm_ind);
+
+                
+
+                
+
+            }
+
+
+            
+            else{
 
             if(strstr(command_array[i],"warp")){
             while(newtoken){     
@@ -261,13 +428,8 @@ int main()
                     else if(check_flag==1&&exec_flag==1){
                         pastevents_flag=1;
                         int execution_number=atoi(newtoken);
-                        // printf("%d\n",execution_number);
-                        // int read_file_descriptor_exec=open("pastevents.txt",O_CREAT | O_RDWR);
-                        // char read_buffer_exec[4096];
-                        // int read_status_exec=read(read_file_descriptor_exec,read_buffer_exec,4096);
-
                         FILE* read_file=fopen(pastevents_dir,"r");
-                        if(read_file==NULL)perror("File couldn't be opened!");
+                        if(read_file==NULL)perrorf("File couldn't be opened!");
 
                         else{
                             
@@ -283,6 +445,7 @@ int main()
 
                         
                     }
+                    
                     newtoken=strtok_r(NULL," ",&saveptr_two);
                 }
                 if(check_flag==1&&argument_flag==0){
@@ -397,9 +560,96 @@ int main()
                 if(file_count==0)printf("No match found!\n");
 
             }
-        
+            else if(strstr(command_array[i],"activities")){
+                
+                activities_b(bg_processes);
+            }
+            else if(strstr(command_array[i],"ping")){
+                
+                char** ping_array=(char**)malloc(sizeof(char*)*3);
+                for(int j=0;j<3;j++){
+                    ping_array[i]=(char*)malloc(sizeof(char)*50);
+                    
+                }
+                int ping_ind=0;
+            
+                while(newtoken){
+                    strcpy(ping_array[ping_ind++],newtoken);
+                    printf("%s\n",newtoken);
+                    newtoken=strtok_r(NULL," ",&saveptr_two);
+                }
+                
+                exec_ping(ping_array);
+                
+
+            }
+
+            else if(strstr(command_array[i],"iMan")){
+
+                if(strstr(command_array[i],"iMan")){
+                    newtoken=strtok_r(NULL," ",&saveptr_two);
+                }
+                char* man_path=(char*)malloc(sizeof(char)*100);
+                strcpy(man_path,directory);
+                strcat(man_path,"/man.txt");
+                read_man(newtoken,man_path);
+
+
+            }
+
+            else if(strstr(command_array[i],"fg")){
+                int check=0;
+                char* pid=(char*)malloc(sizeof(char)*20);
+                while(newtoken){
+                    if(check==0)
+                    if(strstr(newtoken,"fg"))check=1;
+
+                    else{
+                        strcpy(pid,newtoken);
+                    }
+
+
+                    newtoken=strtok_r(NULL," ",&saveptr_two);
+                }
+                exec_fg(pid);
+            } 
+
+            else if(strstr(command_array[i],"bg")){
+                int check=0;
+                char* pid=(char*)malloc(sizeof(char)*20);
+                while(newtoken){
+                    if(check==0)
+                    if(strstr(newtoken,"fg"))check=1;
+
+                    else{
+                        strcpy(pid,newtoken);
+                    }
+
+
+                    newtoken=strtok_r(NULL," ",&saveptr_two);
+                }
+                exec_bg(pid);
+
+            }
+
+            else if(strstr(command_array[i],"neonate")){
+                
+                char** c_array=(char**)malloc(sizeof(char**)*3);
+                for(int j=0;j<3;j++){
+                    c_array[i]=(char*)malloc(sizeof(char)*100);
+
+                }
+                int ind=0;
+                while(newtoken){
+                    strcpy(c_array[ind++],newtoken);
+                    newtoken=strtok_r(NULL," ",&saveptr_two);
+                }
+                int arg=atoi(c_array[2]);
+                e_neonate(c_array[1][0],arg);
+            }
+
             else{
-                // printf("%s\n",command_array[i]);
+
                 char tokenize_copy_command[4096];
                 strcpy(tokenize_copy_command,command_array[i]);
                 
@@ -422,8 +672,9 @@ int main()
                 while(token_copy){
                    
                     int bg_flag=0;
-                    if(strstr(prev_string,"&")){bg_flag=1;}
-                     
+                    if(strstr(prev_string,"&")){bg_flag=1;
+                    // printf("Hi\n");}
+                    }
                         char** command_array_proc=(char**)malloc(sizeof(char*)*5);
                         for(int j=0;j<5;j++){
                             command_array_proc[j]=(char*)malloc(sizeof(char)*15);
@@ -445,25 +696,31 @@ int main()
                         gettimeofday(&start_time, NULL);
                         pid_t pid=fork();
 
-                        if(pid<0)perror("Error spawning process");
+                        if(pid<0)perrorf("Error spawning process");
                         else if(pid==0){
-                            // printf("child\n");
                            
                             
+                            // signal(SIGINT,sighandler);
+                            // signal(SIGTSTP,sig_z);
+                            if (setpgid(0, 0) == -1) {
+                                perrorf("setpgid");
+                                exit(EXIT_FAILURE);
+                            }
                             execvp(command_array_proc[0],command_array_proc);
                             proc_stat=1;
-                            // perror("execvp");
-                            printf("'%s' is not a valid command!\n",command_array_proc[0]);
+                            
+                            perrorf("Not a valid command!");
                             exit(EXIT_FAILURE);
                             }
                         else if(pid>0){
-
+                        // printf("%d\n",pid);
                         if(bg_flag==1){
                         struct background_struct* new=(struct background_struct*)malloc(sizeof(struct background_struct));
                         strcpy(new->name,command_array_proc[0]);
                         new->pid=pid;
                         new->next=bg_processes->next;
                         bg_processes->next=new;
+                        
 
                         
                         printf("%d\n",pid);
@@ -477,8 +734,15 @@ int main()
                         
                         else{
 
+                            fore=pid;
+                            struct processes* new_p=(struct processes*)malloc(sizeof(struct processes));
+                            strcpy(new_p->name,command_array_proc[0]);
+                            new_p->pid=pid;
+                            new_p->next=list_proc->next;
+                            list_proc->next=new_p;
                             int status;
-                            wait(&status); // Wait for the child to finish
+                            
+                            waitpid(pid,&status,WUNTRACED); // Wait for the child to finish
                             
                             gettimeofday(&end_time, NULL);
 
@@ -489,8 +753,8 @@ int main()
                             if(elapsed_time>5){
                                 prompt_flag=1;
                                 strcpy(fg_process,command_array_proc[0]);
-                                fg_time=elapsed_time;
-                            }
+                                fg_time=elapsed_time;}
+                            
                           
                         }
                         
@@ -500,12 +764,9 @@ int main()
                     token_copy=strtok_r(NULL,"&",&save_In_one);
                     }
                     
-            }}
+          }}}
         }
+        write_queue(f,pastevents_dir);
         
-        
-        
-    
-    
-    write_queue(f,pastevents_dir);}
+    }
 }

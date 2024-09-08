@@ -18,7 +18,7 @@ void get_executable_path(const char *pid_str) {
         exe_path[len] = '\0';
         printf("Executable Path: %s\n", exe_path);
     } else {
-        perror("readlink");
+        perrorf("readlink");
     }
 }
 

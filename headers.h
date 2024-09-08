@@ -1,8 +1,5 @@
 #ifndef HEADERS_H_
 #define HEADERS_H_
-
-
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -20,6 +17,7 @@
 #include <pwd.h>
 #include <grp.h>
 #include <time.h>
+#include <netdb.h>
 #define MAX_PATH_LENGTH 256
 #define PATH_MAX 4096
 #define TOTAL_PATHS 10
@@ -33,6 +31,16 @@
 #define ANSI_COLOR_RESET   "\x1b[0m"
 #define MAX_COMMANDS_PAST 15
 #define MAX_LEN 100
+#define MAX_BUFFER_SIZE 4096
+#define BLK "\e[0;30m"
+#define RED "\e[0;31m"
+#define GRN "\e[0;32m"
+#define YEL "\e[0;33m"
+#define BLU "\e[0;34m"
+#define MAG "\e[0;35m"
+#define CYN "\e[0;36m"
+#define WHT "\e[0;37m"
+#define reset "\e[0m"
 #include "prompt.h"
 #include "color.h"
 #include "pastevents.h"
@@ -40,6 +48,13 @@
 #include "proclore.h"
 #include "searchfile.h"
 #include "stringhelper.h"
+#include "iman.h"
+#include "pipe.h"
+#include "fg.h"
+#include "neonate.h"
+#include "global.h"
+#include "ping.h"
+// void activities_b(struct background_struct* bg_processes);
 // void print_in_color(char* string,char* print_string);
 // void print_permissions(mode_t mode);
 // void sighandler(int sig);

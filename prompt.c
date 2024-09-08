@@ -50,14 +50,16 @@ void prompt(char* directory,int* flag,char* name,int time){
     
     else strcpy(temp,directory_new);
 
-    printf("<");
-    printf("%s",usname);
-    printf("@");
-    printf("%s",sysname);
+    
+    // printf("Aaj kamayinga to kal baithkar khayenga\n");
+    printf(MAG"<"reset);
+    printf(ANSI_COLOR_GREEN "%s" ANSI_COLOR_RESET,usname );
+    printf(ANSI_COLOR_RED "@" ANSI_COLOR_RESET);
+    printf(ANSI_COLOR_BLUE "%s" ANSI_COLOR_RESET,sysname);
     printf(":");
-    printf("%s",temp);
+    printf(ANSI_COLOR_RED "%s" ANSI_COLOR_RESET,temp);
     if((*flag)==0){
-    printf(">");}
+    printf(ANSI_COLOR_GREEN ">" ANSI_COLOR_RESET);}
     else{
         printf("%s : %d s>",name,time);
         (*flag)=0;
